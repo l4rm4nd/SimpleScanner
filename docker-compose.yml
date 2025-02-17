@@ -5,9 +5,9 @@ services:
     container_name: simplescanner
     restart: unless-stopped
     ports:
-      - 888:80/tcp
+      - 8888:80/tcp
     expose:
-      - 80   
+      - 80
     #networks:
     #  - proxy
     #labels:
