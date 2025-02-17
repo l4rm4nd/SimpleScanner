@@ -1,0 +1,23 @@
+services:
+
+  scanner:
+    image: ghcr.io/l4rm4nd/simplescanner:latest
+    container_name: simplescanner
+    restart: unless-stopped
+    ports:
+      - 888:80/tcp
+    expose:
+      - 80   
+    #networks:
+    #  - proxy
+    #labels:
+    #  - traefik.enable=true
+    #  - traefik.docker.network=proxy
+    #  - traefik.http.routers.simplescanner.rule=Host(`simplescanner.example.com`)
+    #  - traefik.http.services.simplescanner.loadbalancer.server.port=80
+    #  # Optional part for traefik middlewares
+    #  - traefik.http.routers.CHANGEME.middlewares=local-ipwhitelist@file,crowdsec@file,limit-CHANGEME
+
+#networks:
+#  proxy:
+#    external: true
