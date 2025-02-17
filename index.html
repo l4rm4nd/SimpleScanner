@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode/QR Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #qrScannerSection {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        #video {
+            width: 50%;
+            max-width: 200px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        #loadingMessage, #outputMessage {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .scanner-button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .scanner-button:hover {
+            background-color: #218838;
+        }
+        select {
+            margin-top: 10px;
+            padding: 5px;
+            font-size: 16px;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        .popup button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            cursor: pointer;
+        }
+        .approve {
+            background-color: #007bff;
+            color: white;
+        }
+        .approve:hover {
+            background-color: #0056b3;
+        }
+        .reject {
+            background-color: #dc3545;
+            color: white;
+        }
+        .reject:hover {
+            background-color: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Barcode and QR Scanner</h1>
+    <p>Click the button to start scanning.</p>
+
+    <button id="startScanner" class="scanner-button">Start Scanner</button>
+
+    <label for="cameraSelect">Select Camera: </label>
+    <select id="cameraSelect"></select>
+
+    <div id="qrScannerSection">
+        <video id="video"></video>
+        <div id="loadingMessage">Loading camera...</div>
+        <div id="outputMessage"></div>
+    </div>
+
+    <h2>Scanned Results</h2>
+    <textarea id="scannedResults" rows="10" cols="50" readonly></textarea>
+    <br>
+    <button id="exportButton" class="scanner-button">Export Results</button>
+
+    <div id="popup" class="popup">
+        <p>Scanned Code: <span id="scannedCodeDisplay"></span></p>
+        <button id="approveScanButton" class="approve">Approve</button>
+        <button id="rejectScanButton" class="reject">Reject</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.5/umd/index.min.js"></script>
+    <script>
+        const startScannerButton = document.getElementById('startScanner');
+        const qrScannerSection = document.getElementById('qrScannerSection');
+        const video = document.getElementById('video');
+        const outputMessage = document.getElementById('outputMessage');
+        const scannedResultsTextArea = document.getElementById('scannedResults');
+        const exportButton = document.getElementById('exportButton');
+        const popup = document.getElementById('popup');
+        const approveScanButton = document.getElementById('approveScanButton');
+        const rejectScanButton = document.getElementById('rejectScanButton');
+        const scannedCodeDisplay = document.getElementById('scannedCodeDisplay');
+        const cameraSelect = document.getElementById('cameraSelect');
+
+        let codeReader = new ZXing.BrowserMultiFormatReader();
+        let scannedResults = [];
+        let scanningActive = false;
+        let pendingScan = "";
+
+        function startScanning(deviceId) {
+            qrScannerSection.style.display = "block";
+            scanningActive = true;
+            codeReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
+                if (result && scanningActive) {
+                    scanningActive = false; // Stop scanning
+                    pendingScan = result.text;
+                    showPopup(pendingScan);
+                }
+                if (err && !(err instanceof ZXing.NotFoundException)) {
+                    console.error(err);
+                }
+            });
+        }
+
+        function showPopup(scannedCode) {
+            scannedCodeDisplay.textContent = scannedCode;
+            popup.style.display = 'block';
+        }
+
+        approveScanButton.onclick = function () {
+            scannedResults.push(pendingScan);
+            updateResultsTextArea();
+            popup.style.display = 'none';
+            scanningActive = true; // Restart scanning after approval
+        };
+
+        rejectScanButton.onclick = function () {
+            popup.style.display = 'none';
+            scanningActive = true; // Restart scanning after rejection
+        };
+
+        function updateResultsTextArea() {
+            scannedResultsTextArea.value = scannedResults.join('\n');
+        }
+
+        function exportResults() {
+            const blob = new Blob([scannedResults.join('\n')], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'scanned_results.txt';
+            link.click();
+        }
+
+        startScannerButton.addEventListener("click", function () {
+            if (location.protocol === 'https:' || location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                qrScannerSection.style.display = "block";
+                navigator.mediaDevices.enumerateDevices().then(devices => {
+                    const videoInputDevices = devices.filter(device => device.kind === 'videoinput');
+                    if (videoInputDevices.length > 0) {
+                        cameraSelect.innerHTML = '';
+                        videoInputDevices.forEach((device, index) => {
+                            const option = document.createElement('option');
+                            option.value = device.deviceId;
+                            option.text = device.label || `Camera ${index + 1}`;
+                            cameraSelect.appendChild(option);
+                        });
+                        cameraSelect.value = videoInputDevices[0].deviceId;
+                        startScanning(videoInputDevices[0].deviceId);
+                    }
+                });
+            } else {
+                alert("QR scanning requires HTTPS or localhost.");
+            }
+        });
+
+        cameraSelect.addEventListener('change', () => {
+            startScanning(cameraSelect.value);
+        });
+
+        exportButton.addEventListener("click", exportResults);
+    </script>
+</body>
+</html>
